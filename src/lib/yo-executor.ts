@@ -12,8 +12,8 @@ import { validateWalletAddress, validateAmount, ValidationError } from './valida
 
 const YOUSD_VAULT  = '0x0000000f926268be77Ab7e1d17E4e4C7D4b28a65'
 const YOGATEWAY    = '0xF1EeE0957267b1A474323Ff9CfF7719E964969FA'
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
-const USDC_DECIMALS = 6
+const USDT_ADDRESS = '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'
+const USDT_DECIMALS = 6
 
 const ERC20_ABI = [
   {
@@ -109,7 +109,7 @@ export interface ToolResult {
   success: boolean
   tx_hash?: string
   basescan_url?: string
-  amount_usdc?: number
+  amount_usdt?: number
   slippage_bps?: number
   error?: string
   notified?: boolean
@@ -119,32 +119,33 @@ export interface ToolResult {
 
 // ─── Live blockchain reads ─────────────────────────────
 
-export async function getLiveUSDCBalance(address: string): Promise<number> {
+export async function getLiveUSDTBalance(address: string): Promise<number> {
   try {
     if (!address || address === 'undefined' || address.length < 10) {
       throw new Error(`Invalid address provided: "${address}"`)
     }
+
     const validatedAddress = validateWalletAddress(address)
     const raw = await withRetry(
       () => publicClient.readContract({
-        address: USDC_ADDRESS as `0x${string}`,
+        address: USDT_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [validatedAddress as `0x${string}`],
       }),
       { maxAttempts: 3, delayMs: 1000 }
     )
-    return Number(formatUnits(raw, USDC_DECIMALS))
+    return Number(formatUnits(raw, USDT_DECIMALS))
   } catch (err: any) {
     // Log the FULL error details
-    logger.error('Failed to get USDC balance', err, { 
+    logger.error('Failed to get USDT balance', err, { 
       address,
       rpcUrl: process.env.BASE_RPC_URL,
       errorMessage: err?.message,
       errorCause: err?.cause?.message,
       errorDetails: JSON.stringify(err, null, 2)
     })
-    throw new Error(`USDC balance read failed: ${err?.message} | cause: ${err?.cause?.message}`)
+    throw new Error(`USDT balance read failed: ${err?.message} | cause: ${err?.cause?.message}`)
   }
 }
 
@@ -169,7 +170,7 @@ export async function getLiveVaultBalance(address: string): Promise<number> {
       },
       { maxAttempts: 3, delayMs: 1000 }
     )
-    return Number(formatUnits(assetsRaw, USDC_DECIMALS))
+    return Number(formatUnits(assetsRaw, USDT_DECIMALS))
   } catch (err) {
     logger.error('Failed to get vault balance', err, { address })
     throw new RetryableError('Failed to read vault balance')
@@ -237,7 +238,7 @@ export async function getDaysSinceLastDeposit(userId: string): Promise<number> {
     const row = await queryOne<{ executed_at: string }>(
       `SELECT executed_at FROM agent_logs
        WHERE user_id = $1
-       AND tool_name IN ('deposit_to_goal','sweep_idle_usdc','protect_streak')
+       AND tool_name IN ('deposit_to_goal','sweep_idle_usdt','protect_streak')
        AND (result->>'success')::boolean = true
        ORDER BY executed_at DESC LIMIT 1`,
       [validatedId]
@@ -260,7 +261,7 @@ export async function hasDepositedThisWeek(userId: string): Promise<boolean> {
     const row = await queryOne<{ id: string }>(
       `SELECT id FROM agent_logs
        WHERE user_id = $1
-       AND tool_name IN ('deposit_to_goal','sweep_idle_usdc','protect_streak')
+       AND tool_name IN ('deposit_to_goal','sweep_idle_usdt','protect_streak')
        AND (result->>'success')::boolean = true
        AND executed_at >= $2
        LIMIT 1`,
@@ -280,7 +281,7 @@ function buildApproveTx(amountRaw: bigint) {
   const spender = YOUSD_VAULT.slice(2).padStart(64, '0')
   const amount = amountRaw.toString(16).padStart(64, '0')
   return {
-    to: USDC_ADDRESS,
+    to: USDT_ADDRESS,
     data: `0x${approveSelector}${spender}${amount}`,
   }
 }
@@ -298,13 +299,13 @@ function buildDepositTx(amountRaw: bigint, receiver: string) {
 async function executeRealDeposit(
   userId: string,
   walletAddress: string,
-  amountUSDC: number
+  amountUSDT: number
 ): Promise<{ success: boolean; txHash?: string; error?: string; slippageBps?: number }> {
   const startTime = Date.now()
   
   try {
     const validatedWallet = validateWalletAddress(walletAddress)
-    const validatedAmount = validateAmount(amountUSDC, 0.01, 100000)
+    const validatedAmount = validateAmount(amountUSDT, 0.01, 100000)
     const validatedUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '')
     
     logger.info('Starting deposit execution', { 
@@ -313,12 +314,12 @@ async function executeRealDeposit(
       amount: validatedAmount 
     })
     
-    const amountRaw = parseUnits(validatedAmount.toFixed(6), USDC_DECIMALS)
+    const amountRaw = parseUnits(validatedAmount.toFixed(6), USDT_DECIMALS)
 
-    // Check USDC allowance
+    // Check USDT allowance
     const allowance = await withRetry(
       () => publicClient.readContract({
-        address: USDC_ADDRESS as `0x${string}`,
+        address: USDT_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'allowance',
         args: [validatedWallet as `0x${string}`, YOUSD_VAULT as `0x${string}`],
@@ -472,13 +473,13 @@ export async function getEthBalance(address: string): Promise<string> {
 async function executeRealWithdrawal(
   userId: string,
   walletAddress: string,
-  amountUSDC: number
+  amountUSDT: number
 ): Promise<{ success: boolean; txHash?: string; error?: string; slippageBps?: number }> {
   const startTime = Date.now()
   
   try {
     const validatedWallet = validateWalletAddress(walletAddress)
-    const validatedAmount = validateAmount(amountUSDC, 0.01, 100000)
+    const validatedAmount = validateAmount(amountUSDT, 0.01, 100000)
     const validatedUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '')
     
     logger.info('Starting withdrawal execution', { 
@@ -487,7 +488,7 @@ async function executeRealWithdrawal(
       amount: validatedAmount 
     })
     
-    const amountRaw = parseUnits(validatedAmount.toFixed(6), USDC_DECIMALS)
+    const amountRaw = parseUnits(validatedAmount.toFixed(6), USDT_DECIMALS)
 
     // Check vault balance (shares)
     const vaultShares = await withRetry(
@@ -508,7 +509,7 @@ async function executeRealWithdrawal(
     })
     
     if (vaultAssets < amountRaw) {
-      throw new Error(`Insufficient vault balance. Have ${formatUnits(vaultAssets, USDC_DECIMALS)} USDC, want ${validatedAmount} USDC`)
+      throw new Error(`Insufficient vault balance. Have ${formatUnits(vaultAssets, USDT_DECIMALS)} USDT, want ${validatedAmount} USDT`)
     }
 
     const privyBase = `https://auth.privy.io/api/v1/apps/${process.env.PRIVY_APP_ID}`
@@ -587,21 +588,21 @@ export async function executeTool(
   args: Record<string, any>,
   rules: AgentRules
 ): Promise<ToolResult> {
-  const moneyTools = ['deposit_to_goal', 'sweep_idle_usdc', 'protect_streak']
+  const moneyTools = ['deposit_to_goal', 'sweep_idle_usdt', 'protect_streak']
 
   if (moneyTools.includes(toolName)) {
     // Allow manual deposits even if autopilot is OFF
     if (!rules.autopilot && toolName !== 'deposit_to_goal') {
       return { success: true, skipped: true, skip_reason: 'Autopilot OFF — notify only' }
     }
-    const amount = args.amount_usdc ?? 1
+    const amount = args.amount_usdt ?? 1
     const remaining = rules.monthlyBudget - rules.spentThisMonth
     if (amount > remaining) {
       return { success: false, skipped: true, skip_reason: `Exceeds monthly budget. Remaining: $${remaining.toFixed(2)}` }
     }
-    const liveBalance = await getLiveUSDCBalance(rules.walletAddress)
+    const liveBalance = await getLiveUSDTBalance(rules.walletAddress)
     if (liveBalance < amount) {
-      return { success: false, skipped: true, skip_reason: `Insufficient USDC. Have $${liveBalance.toFixed(2)}, need $${amount}` }
+      return { success: false, skipped: true, skip_reason: `Insufficient USDT. Have $${liveBalance.toFixed(2)}, need $${amount}` }
     }
   }
 
@@ -609,20 +610,20 @@ export async function executeTool(
     case 'deposit_to_goal': {
       try {
         const goal_name = args.goal_name || 'General Savings'
-        const amount_usdc = validateAmount(args.amount_usdc, 0.01)
+        const amount_usdt = validateAmount(args.amount_usdt, 0.01)
         
-        const result = await executeRealDeposit(rules.userId, rules.walletAddress, amount_usdc)
+        const result = await executeRealDeposit(rules.userId, rules.walletAddress, amount_usdt)
         
         if (result.success) {
           // Use transaction for database updates
           await withTransaction(async (trx) => {
             await trx.query(
               `UPDATE agent_rules SET spent_this_month = spent_this_month + $1, updated_at = now() WHERE user_id = $2`,
-              [amount_usdc, rules.userId]
+              [amount_usdt, rules.userId]
             )
             await trx.query(
               `UPDATE goals SET deposited_amount = deposited_amount + $1 WHERE user_id = $2 AND LOWER(name) = LOWER($3)`,
-              [amount_usdc, rules.userId, goal_name]
+              [amount_usdt, rules.userId, goal_name]
             )
           })
         }
@@ -631,7 +632,7 @@ export async function executeTool(
           success: result.success,
           tx_hash: result.txHash,
           basescan_url: result.txHash ? `https://basescan.org/tx/${result.txHash}` : undefined,
-          amount_usdc,
+          amount_usdt,
           error: result.error,
         }
       } catch (err: any) {
@@ -642,9 +643,9 @@ export async function executeTool(
       }
     }
 
-    case 'sweep_idle_usdc': {
+    case 'sweep_idle_usdt': {
       try {
-        const amount_usdc = validateAmount(args.amount_usdc, 0.01)
+        const amount_usdt = validateAmount(args.amount_usdt, 0.01)
         
         const goals = await query<{ id: string }>(
           `SELECT * FROM goals WHERE user_id = $1 AND deposited_amount < target_amount ORDER BY priority ASC LIMIT 1`,
@@ -653,17 +654,17 @@ export async function executeTool(
         
         if (!goals.length) return { success: false, error: 'No active goals' }
         
-        const result = await executeRealDeposit(rules.userId, rules.walletAddress, amount_usdc)
+        const result = await executeRealDeposit(rules.userId, rules.walletAddress, amount_usdt)
         
         if (result.success) {
           await withTransaction(async (trx) => {
             await trx.query(
               `UPDATE agent_rules SET spent_this_month = spent_this_month + $1, updated_at = now() WHERE user_id = $2`,
-              [amount_usdc, rules.userId]
+              [amount_usdt, rules.userId]
             )
             await trx.query(
               `UPDATE goals SET deposited_amount = deposited_amount + $1 WHERE id = $2`,
-              [amount_usdc, goals[0].id]
+              [amount_usdt, goals[0].id]
             )
           })
         }
@@ -672,7 +673,7 @@ export async function executeTool(
           success: result.success,
           tx_hash: result.txHash,
           basescan_url: result.txHash ? `https://basescan.org/tx/${result.txHash}` : undefined,
-          amount_usdc,
+          amount_usdt,
           error: result.error,
         }
       } catch (err: any) {
@@ -740,30 +741,30 @@ export async function executeTool(
     case 'withdraw_from_goal': {
       try {
         const goal_name = args.goal_name || 'General Savings'
-        const amount_usdc = validateAmount(args.amount_usdc, 0.01)
+        const amount_usdt = validateAmount(args.amount_usdt, 0.01)
         
         // Check on-chain vault balance
         const vaultBalance = await getLiveVaultBalance(rules.walletAddress)
         
-        if (vaultBalance < amount_usdc) {
+        if (vaultBalance < amount_usdt) {
           return { 
             success: false, 
-            error: `Insufficient vault balance. Deposited: $${vaultBalance.toFixed(2)}, Requested: $${amount_usdc}` 
+            error: `Insufficient vault balance. Deposited: $${vaultBalance.toFixed(2)}, Requested: $${amount_usdt}` 
           }
         }
         
-        const result = await executeRealWithdrawal(rules.userId, rules.walletAddress, amount_usdc)
+        const result = await executeRealWithdrawal(rules.userId, rules.walletAddress, amount_usdt)
         
         if (result.success) {
           // Use transaction for database updates
           await withTransaction(async (trx) => {
             await trx.query(
               `UPDATE agent_rules SET spent_this_month = GREATEST(0, spent_this_month - $1), updated_at = now() WHERE user_id = $2`,
-              [amount_usdc, rules.userId]
+              [amount_usdt, rules.userId]
             )
             await trx.query(
               `UPDATE goals SET deposited_amount = GREATEST(0, deposited_amount - $1) WHERE user_id = $2 AND LOWER(name) = LOWER($3)`,
-              [amount_usdc, rules.userId, goal_name]
+              [amount_usdt, rules.userId, goal_name]
             )
           })
         }
@@ -772,7 +773,7 @@ export async function executeTool(
           success: result.success,
           tx_hash: result.txHash,
           basescan_url: result.txHash ? `https://basescan.org/tx/${result.txHash}` : undefined,
-          amount_usdc,
+          amount_usdt,
           slippage_bps: result.slippageBps,
           error: result.error,
         }

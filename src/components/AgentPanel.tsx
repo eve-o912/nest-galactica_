@@ -21,7 +21,6 @@ import {
   Sparkles,
   Info,
   ArrowRightLeft,
-  Fuel,
   ArrowRight,
   ChevronDown,
   X,
@@ -94,7 +93,7 @@ export function AgentPanel() {
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoal, setSelectedGoal] = useState('');
-  const [balances, setBalances] = useState<Balances>({ vault: 0, walletUSDC: 0, eth: '0' });
+  const [balances, setBalances] = useState<Balances>({ vault: 0, walletUSDT: 0, eth: '0' });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'deposit' | 'withdraw' | null>(null);
   
@@ -493,12 +492,10 @@ export function AgentPanel() {
     error: <AlertCircle className="w-5 h-5 text-red-500" />,
   };
 
-  const hasLowGas = parseFloat(balances.eth) < 0.0001;
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Balance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4">
           <p className="text-sm text-neutral-500 mb-1">Vault Balance</p>
           <p className="text-2xl font-bold text-neutral-900 dark:text-white">
@@ -507,22 +504,11 @@ export function AgentPanel() {
           <p className="text-xs text-neutral-400">yoUSD on Base</p>
         </div>
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4">
-          <p className="text-sm text-neutral-500 mb-1">Wallet USDC</p>
+          <p className="text-sm text-neutral-500 mb-1">Wallet USDT</p>
           <p className="text-2xl font-bold text-neutral-900 dark:text-white">
-            ${balances?.walletUSDC?.toFixed(2) ?? '0.00'}
+            ${balances?.walletUSDT?.toFixed(2) ?? '0.00'}
           </p>
           <p className="text-xs text-neutral-400">Available to deposit</p>
-        </div>
-        <div className={`rounded-xl border p-4 ${hasLowGas ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800'}`}>
-          <p className="text-sm text-neutral-500 mb-1 flex items-center gap-1">
-            <Fuel className="w-3 h-3" /> ETH Balance
-          </p>
-          <p className={`text-2xl font-bold ${hasLowGas ? 'text-red-600' : 'text-neutral-900 dark:text-white'}`}>
-            {parseFloat(balances?.eth ?? '0').toFixed(4)}
-          </p>
-          {hasLowGas && (
-            <p className="text-xs text-red-600">⚠️ Need ETH for gas fees</p>
-          )}
         </div>
       </div>
 

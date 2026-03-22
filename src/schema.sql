@@ -40,9 +40,23 @@ CREATE TABLE goals (
   deposited_amount NUMERIC DEFAULT 0,
   monthly_pledge NUMERIC DEFAULT 0,
   target_date DATE,
-  asset TEXT DEFAULT 'USDC',
+  asset TEXT DEFAULT 'USDT',
   priority INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- WDK wallets table for EVM wallet management
+CREATE TABLE wdk_wallets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL UNIQUE,
+  address TEXT NOT NULL UNIQUE,
+  public_key TEXT,
+  encrypted_data TEXT NOT NULL, -- Encrypted private key and mnemonic
+  wallet_type TEXT DEFAULT 'evm',
+  network TEXT DEFAULT 'base',
+  account_abstraction BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Create indexes for performance
@@ -50,3 +64,5 @@ CREATE INDEX idx_agent_logs_user_id ON agent_logs(user_id);
 CREATE INDEX idx_agent_logs_executed_at ON agent_logs(executed_at DESC);
 CREATE INDEX idx_goals_user_id ON goals(user_id);
 CREATE INDEX idx_goals_priority ON goals(priority ASC);
+CREATE INDEX idx_wdk_wallets_user_id ON wdk_wallets(user_id);
+CREATE INDEX idx_wdk_wallets_address ON wdk_wallets(address);

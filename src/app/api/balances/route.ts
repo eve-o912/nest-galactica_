@@ -3,7 +3,7 @@ import { logger } from '@/lib/retry'
 import { createPublicClient, http, parseAbi, formatEther } from 'viem'
 import { base } from 'viem/chains'
 
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+const USDT_ADDRESS = '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'
 const YOUSD_VAULT = '0x0000000f926268be77Ab7e1d17E4e4C7D4b28a65'
 const VAULT_ABI = parseAbi([
   'function balanceOf(address owner) view returns (uint256)',
@@ -30,7 +30,7 @@ export const GET = withSecurity(async (req: Request) => {
   
   try {
     // Fetch all balances in parallel
-    const [vaultShares, vaultDecimals, usdcBalance, usdcDecimals, ethBalance] = await Promise.all([
+    const [vaultShares, vaultDecimals, usdtBalance, usdtDecimals, ethBalance] = await Promise.all([
       client.readContract({
         address: YOUSD_VAULT,
         abi: VAULT_ABI,
@@ -43,13 +43,13 @@ export const GET = withSecurity(async (req: Request) => {
         functionName: 'decimals',
       }).catch(() => 6),
       client.readContract({
-        address: USDC_ADDRESS,
+        address: USDT_ADDRESS,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [wallet as `0x${string}`],
       }).catch(() => 0n),
       client.readContract({
-        address: USDC_ADDRESS,
+        address: USDT_ADDRESS,
         abi: ERC20_ABI,
         functionName: 'decimals',
       }).catch(() => 6),
@@ -66,18 +66,18 @@ export const GET = withSecurity(async (req: Request) => {
 
     const result = {
       vault: Number(vaultAssets) / Math.pow(10, vaultDecimals),
-      walletUSDC: Number(usdcBalance) / Math.pow(10, usdcDecimals),
+      walletUSDT: Number(usdtBalance) / Math.pow(10, usdtDecimals),
       eth: formatEther(ethBalance),
     }
     
-    logger.info('Fetched balances', { wallet, vault: result.vault, usdc: result.walletUSDC, eth: result.eth })
+    logger.info('Fetched balances', { wallet, vault: result.vault, usdt: result.walletUSDT, eth: result.eth })
     return Response.json(result)
   } catch (err: any) {
     logger.error('Failed to fetch balances', err, { wallet })
     return Response.json({ 
       error: err.message || 'Failed to fetch balances',
       vault: 0,
-      walletUSDC: 0,
+      walletUSDT: 0,
       eth: '0',
     }, { status: 500 })
   }
