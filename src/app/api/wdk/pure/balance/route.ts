@@ -8,6 +8,10 @@ const WALLET_ENCRYPTION_KEY = process.env.WALLET_ENCRYPTION_KEY;
 
 // GET /api/wdk/pure/balance - Get wallet balances
 export async function GET(request: NextRequest) {
+  // Declare variables at function scope for error handling
+  let userId: string | null = null;
+  let chain: string | null = null;
+  
   try {
     // Check if encryption key is available
     if (!WALLET_ENCRYPTION_KEY) {
@@ -18,8 +22,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const chain = searchParams.get('chain') || 'base';
+    userId = searchParams.get('userId');
+    chain = searchParams.get('chain') || 'base';
 
     if (!userId) {
       return NextResponse.json(
@@ -77,7 +81,7 @@ export async function GET(request: NextRequest) {
           formatted: balance,
         });
       } catch (error) {
-        logger.warn(`Failed to get ${symbol} balance`, error);
+        logger.warn(`Failed to get ${symbol} balance`, { error: error instanceof Error ? error.message : String(error) });
         tokenBalances.push({
           symbol,
           address,
@@ -103,9 +107,23 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    logger.error('Failed to get balances with pure WDK', error);
+    logger.error('Failed to get balances with WDK', {
+      error: error.message,
+      stack: error.stack,
+      userId: userId || 'unknown',
+      chain: chain || 'unknown'
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to get balances', details: error?.message || 'Unknown error' },
+      { 
+        error: 'Failed to get balances', 
+        details: error?.message || 'Unknown error',
+        debug: {
+          hasEncryptionKey: !!WALLET_ENCRYPTION_KEY,
+          userId: userId || 'missing',
+          chain: chain || 'missing'
+        }
+      },
       { status: 500 }
     );
   }

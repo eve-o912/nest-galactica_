@@ -22,9 +22,17 @@ export const GET = withSecurity(async (req: Request) => {
     logger.info('Fetched goals', { userId: userIdParam, count: goals.length })
     return Response.json(goals)
   } catch (err: any) {
-    logger.error('Failed to fetch goals', err, { userId: userIdParam })
+    logger.error('Failed to fetch goals', {
+      error: err.message,
+      stack: err.stack,
+      userId: userIdParam || 'unknown'
+    });
     return Response.json({ 
-      error: err.message || 'Failed to fetch goals' 
+      error: err.message || 'Failed to fetch goals',
+      debug: {
+        userId: userIdParam || 'missing',
+        databaseError: !!err.message
+      }
     }, { status: 500 })
   }
 })
