@@ -30,8 +30,8 @@ import { StreaksView } from '@/components/streaks-view';
 import { Onboarding } from '@/components/onboarding';
 import { GoalModal } from '@/components/goal-modal';
 import { AgentPanel } from '@/components/AgentPanel';
-import { LoginButton } from '@/components/login-button';
-import { usePrivy } from '@privy-io/react-auth';
+import { PureWDKLoginButton } from '@/components/pure-wdk-login-button';
+import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -45,7 +45,7 @@ const TABS = [
 ];
 
 export default function NestApp() {
-  const { user, authenticated, ready } = usePrivy();
+  const { user, authenticated, ready } = usePureWDKWallet();
   const userId = user?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -292,7 +292,7 @@ export default function NestApp() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <LoginButton />
+              <PureWDKLoginButton />
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center"

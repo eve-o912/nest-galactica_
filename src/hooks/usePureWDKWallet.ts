@@ -1,0 +1,228 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+
+export interface WalletInfo {
+  address: string;
+  publicKey?: string;
+  balance: {
+    eth: string;
+    usdt: string;
+    usdc: string;
+  };
+  chain: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function usePureWDKWallet() {
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Initialize user ID (in real app, this would come from your auth system)
+  useEffect(() => {
+    // For demo purposes, use a stored user ID or generate one
+    const storedUserId = localStorage.getItem('pure_wdk_user_id');
+    if (storedUserId) {
+      setUserId(storedUserId);
+    } else {
+      const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('pure_wdk_user_id', newUserId);
+      setUserId(newUserId);
+    }
+  }, []);
+
+  // Fetch wallet info
+  const fetchWallet = useCallback(async () => {
+    if (!userId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/wdk/pure/balance', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Wallet doesn't exist yet
+          setWallet(null);
+          return;
+        }
+        throw new Error('Failed to fetch wallet');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setWallet({
+          address: data.address,
+          publicKey: data.publicKey,
+          balance: {
+            eth: data.native?.formatted || '0',
+            usdt: data.tokens?.find((t: any) => t.symbol === 'USDT')?.formatted || '0',
+            usdc: data.tokens?.find((t: any) => t.symbol === 'USDC')?.formatted || '0',
+          },
+          chain: data.chain || 'base',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch wallet');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  // Create new wallet
+  const createWallet = useCallback(async (chain: string = 'base') => {
+    if (!userId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/wdk/pure/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          chain,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create wallet');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Fetch the newly created wallet details
+        await fetchWallet();
+        return data;
+      } else {
+        throw new Error(data.error || 'Failed to create wallet');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create wallet');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, fetchWallet]);
+
+  // Send transaction
+  const sendTransaction = useCallback(async (params: {
+    to: string;
+    amount?: string;
+    tokenType?: string;
+    chain?: string;
+  }) => {
+    if (!userId) throw new Error('No user ID');
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/wdk/pure/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          to: params.to,
+          value: params.amount,
+          tokenType: params.tokenType,
+          amount: params.amount,
+          chain: params.chain || 'base',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send transaction');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh wallet balance
+        await fetchWallet();
+        return data;
+      } else {
+        throw new Error(data.error || 'Transaction failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send transaction');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, fetchWallet]);
+
+  // Check if wallet has sufficient balance
+  const hasBalance = useCallback((amount: string, token: 'eth' | 'usdt' | 'usdc' = 'eth'): boolean => {
+    if (!wallet) return false;
+    
+    const balance = parseFloat(wallet.balance[token]);
+    return balance >= parseFloat(amount);
+  }, [wallet]);
+
+  // Format balance for display
+  const formatBalance = useCallback((balance: string, token: 'eth' | 'usdt' | 'usdc' = 'eth'): string => {
+    const num = parseFloat(balance);
+    
+    if (token === 'eth') {
+      return `${num.toFixed(4)} ETH`;
+    } else if (token === 'usdt') {
+      return `$${num.toFixed(2)} USDT`;
+    } else {
+      return `$${num.toFixed(2)} USDC`;
+    }
+  }, []);
+
+  // Auto-fetch wallet on mount and when userId changes
+  useEffect(() => {
+    if (userId) {
+      fetchWallet();
+    }
+  }, [userId, fetchWallet]);
+
+  return {
+    wallet,
+    loading,
+    error,
+    userId,
+    authenticated: !!wallet,
+    ready: true, // Always ready for pure WDK
+    createWallet,
+    sendTransaction,
+    fetchWallet,
+    hasBalance,
+    formatBalance,
+    // Add compatibility with existing Privy interface
+    login: async () => {
+      if (!userId) return;
+      if (!wallet) {
+        await createWallet();
+      }
+    },
+    logout: () => {
+      setWallet(null);
+      localStorage.removeItem('pure_wdk_user_id');
+      setUserId(null);
+    },
+    user: userId ? { id: userId } : null,
+  };
+}
