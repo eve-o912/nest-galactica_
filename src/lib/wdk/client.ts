@@ -1,3 +1,4 @@
+import { WDKManager, WDKWallet, TOKEN_ADDRESSES } from '@/lib/wdk/wdk-integration';
 import { createPublicClient, http } from 'viem';
 import { base, mainnet, polygon, arbitrum } from 'viem/chains';
 import { logger } from '@/lib/retry';
@@ -79,11 +80,11 @@ export function getPublicClient(chainName: keyof typeof CHAIN_CONFIGS) {
   return publicClients[chainName];
 }
 
-// WDK client instances for each chain (placeholder for future WDK integration)
-const wdkClients: Record<string, any> = {};
+// WDK client instances for each chain
+const wdkClients: Record<string, WDKWallet> = {};
 
-// Create WDK client for specific chain (placeholder)
-export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<any> {
+// Create WDK client for specific chain
+export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<WDKWallet> {
   if (wdkClients[chainName]) {
     return wdkClients[chainName];
   }
@@ -91,39 +92,23 @@ export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'b
   const config = CHAIN_CONFIGS[chainName];
 
   try {
-    // Placeholder for future WDK integration
-    // For now, return a mock client that provides basic functionality
-    const mockClient = {
-      network: chainName,
+    // Create WDK-compatible wallet
+    const mockWallet = WDKManager.createWallet({
+      chain: chainName as 'base' | 'ethereum' | 'polygon' | 'arbitrum',
       rpcUrl: config.rpcUrl,
-      chain: config.chain,
-      createWallet: async (walletConfig: any) => {
-        // Mock wallet creation - would use actual WDK in production
-        return {
-          address: `0x${Math.random().toString(16).substr(2, 40)}`,
-          publicKey: `0x${Math.random().toString(16).substr(2, 130)}`,
-        };
-      },
-      restoreWallet: async (walletData: any) => {
-        // Mock wallet restoration
-        return {
-          address: walletData.address,
-          publicKey: `0x${Math.random().toString(16).substr(2, 130)}`,
-        };
-      },
-    };
+    });
 
-    wdkClients[chainName] = mockClient;
-    logger.info(`Mock WDK client created for ${chainName} (placeholder for real WDK integration)`);
-    return mockClient;
+    wdkClients[chainName] = mockWallet.wallet;
+    logger.info(`WDK-compatible client created for ${chainName}`);
+    return mockWallet.wallet;
   } catch (error) {
-    logger.error(`Failed to create mock WDK client for ${chainName}`, error);
+    logger.error(`Failed to create WDK client for ${chainName}`, error);
     throw new Error(`WDK client creation failed for ${chainName}`);
   }
 }
 
 // Get WDK client for specific chain
-export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<any> {
+export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<WDKWallet> {
   if (!wdkClients[chainName]) {
     return await createWDKClient(chainName);
   }
@@ -131,7 +116,7 @@ export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base
 }
 
 // Get all WDK clients
-export async function getAllWDKClients(): Promise<Record<string, any>> {
+export async function getAllWDKClients(): Promise<Record<string, WDKWallet>> {
   const chainNames = Object.keys(CHAIN_CONFIGS) as Array<keyof typeof CHAIN_CONFIGS>;
   
   for (const chainName of chainNames) {
@@ -146,40 +131,79 @@ export async function getAllWDKClients(): Promise<Record<string, any>> {
 // Legacy compatibility
 export const publicClient = publicClients.base;
 
-// Wallet creation helper (placeholder for future WDK integration)
+// Wallet creation helper using WDK Manager
 export async function createEVMWallet(options?: {
   useAccountAbstraction?: boolean;
   mnemonic?: string;
+  chain?: 'base' | 'ethereum' | 'polygon' | 'arbitrum';
 }) {
-  const client = await getWDKClient();
+  const chain = options?.chain || 'base';
   
-  const walletConfig = {
-    type: 'evm' as const,
-    network: 'base',
-    accountAbstraction: options?.useAccountAbstraction ?? false,
-    mnemonic: options?.mnemonic,
-  };
-
-  return await client.createWallet(walletConfig);
+  if (options?.mnemonic) {
+    // Import from existing mnemonic
+    const wallet = WDKManager.importFromMnemonic({
+      mnemonic: options.mnemonic,
+      chain,
+    });
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      chain,
+      accountAbstraction: options.useAccountAbstraction ?? false,
+    };
+  } else {
+    // Create new wallet
+    const { wallet, mnemonic, privateKey } = WDKManager.createWallet({
+      chain,
+    });
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      mnemonic,
+      privateKey,
+      chain,
+      accountAbstraction: options.useAccountAbstraction ?? false,
+    };
+  }
 }
 
-// Wallet restoration helper (placeholder for future WDK integration)
+// Wallet restoration helper using WDK Manager
 export async function restoreEVMWallet(walletData: {
   address: string;
   privateKey?: string;
   mnemonic?: string;
   useAccountAbstraction?: boolean;
+  chain?: 'base' | 'ethereum' | 'polygon' | 'arbitrum';
 }) {
-  const client = await getWDKClient();
+  const chain = walletData.chain || 'base';
   
-  return client.restoreWallet({
-    type: 'evm',
-    address: walletData.address as `0x${string}`,
-    privateKey: walletData.privateKey,
-    mnemonic: walletData.mnemonic,
-    network: 'base',
-    accountAbstraction: walletData.useAccountAbstraction ?? false,
-  });
+  if (walletData.privateKey) {
+    // Import from private key
+    const wallet = WDKManager.importWallet({
+      privateKey: walletData.privateKey,
+      chain,
+    });
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      chain,
+      accountAbstraction: walletData.useAccountAbstraction ?? false,
+    };
+  } else if (walletData.mnemonic) {
+    // Import from mnemonic
+    const wallet = WDKManager.importFromMnemonic({
+      mnemonic: walletData.mnemonic,
+      chain,
+    });
+    return {
+      address: wallet.address,
+      publicKey: wallet.publicKey,
+      chain,
+      accountAbstraction: walletData.useAccountAbstraction ?? false,
+    };
+  } else {
+    throw new Error('Either privateKey or mnemonic is required for wallet restoration');
+  }
 }
 
 // Get wallet balance
