@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { Redis } from '@upstash/redis'
 import { query } from '@/lib/db'
 import {
-  getLiveUSDCBalance, getLiveVaultBalance, getLiveAPY,
+  getLiveUSDTBalance, getLiveVaultBalance, getLiveAPY,
   getUserYieldEarned, getUserDepositHistory,
   getDaysSinceLastDeposit, hasDepositedThisWeek,
   executeTool, type AgentRules,

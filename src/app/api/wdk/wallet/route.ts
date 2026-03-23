@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createWalletClient, restoreEVMWallet } from '@/lib/wdk/client';
+import { createEVMWallet, restoreEVMWallet } from '@/lib/wdk/client';
 import { encrypt, decrypt } from '@/lib/wdk/crypto';
 import { withRetry, logger } from '@/lib/retry';
 
@@ -22,12 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create WDK client
-    const wdkClient = await createWalletClient();
-    
     // Create EVM wallet with USDT bridge support
     const wallet = await createEVMWallet({
-      mnemonic: undefined,
       useAccountAbstraction: false, // Use basic EVM wallet for now
     });
 
