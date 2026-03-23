@@ -49,9 +49,9 @@ export const POST = withSecurity(async (req: Request) => {
     const result = await query(
       `INSERT INTO goals (
         user_id, name, emoji, target_amount, deposited_amount, 
-        target_date, monthly_pledge, asset_type, created_at
+        target_date, monthly_pledge, asset, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING id, name, emoji, target_amount, deposited_amount, target_date, monthly_pledge, asset_type, created_at`,
+      RETURNING id, name, emoji, target_amount, deposited_amount, target_date, monthly_pledge, asset, created_at`,
       [userId, name, emoji || '🎯', targetAmount, depositedAmount || 0, targetDate, monthlyPledge || 0, assetType || 'USDC']
     )
     
