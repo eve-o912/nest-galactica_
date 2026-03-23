@@ -1,5 +1,10 @@
-import { TronWeb } from 'tronweb';
 import { logger } from '@/lib/retry';
+
+// Dynamic import for tronweb to avoid build issues
+const getTronWeb = async () => {
+  const TronWeb = (await import('tronweb')).default;
+  return TronWeb;
+};
 
 // TRON network configuration
 const TRON_CONFIG = {
@@ -11,14 +16,15 @@ const TRON_CONFIG = {
 const TRON_USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 
 // TRON client singleton
-let tronWeb: TronWeb | null = null;
+let tronWeb: any = null;
 
-export function getTronWeb(): TronWeb {
+export async function getTronWebInstance(): Promise<any> {
   if (tronWeb) {
     return tronWeb;
   }
 
   try {
+    const TronWeb = await getTronWeb();
     tronWeb = new TronWeb({
       fullHost: TRON_CONFIG.fullHost,
       headers: { "TRON-PRO-API-KEY": process.env.TRON_API_KEY },
@@ -41,7 +47,7 @@ export function getTronWeb(): TronWeb {
 // Get TRON USDT balance
 export async function getTronUSDTBalance(address: string): Promise<number> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     const contract = await tron.contract().at(TRON_USDT_CONTRACT);
     
     const balance = await contract.balanceOf(address).call();
@@ -58,7 +64,7 @@ export async function sendTronUSDT(
   amount: number
 ): Promise<{ txHash: string; success: boolean }> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     const contract = await tron.contract().at(TRON_USDT_CONTRACT);
     
     const amountInSun = Math.floor(amount * 1_000_000); // Convert to smallest unit
@@ -84,7 +90,7 @@ export async function sendTronUSDT(
 // Get TRX balance
 export async function getTrxBalance(address: string): Promise<number> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     const balance = await tron.trx.getBalance(address);
     return balance / 1_000_000; // Convert from SUN to TRX
   } catch (error) {
@@ -94,9 +100,9 @@ export async function getTrxBalance(address: string): Promise<number> {
 }
 
 // Create TRON wallet
-export function createTronWallet(): { address: string; privateKey: string } {
+export async function createTronWallet(): Promise<{ address: string; privateKey: string }> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     const account = tron.createAccount();
     
     return {
@@ -110,9 +116,9 @@ export function createTronWallet(): { address: string; privateKey: string } {
 }
 
 // Validate TRON address
-export function isValidTronAddress(address: string): boolean {
+export async function isValidTronAddress(address: string): Promise<boolean> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     return tron.isAddress(address);
   } catch {
     return false;
@@ -126,7 +132,7 @@ export async function getTransactionStatus(txHash: string): Promise<{
   timestamp?: number;
 }> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     const transaction = await tron.trx.getTransaction(txHash);
     
     if (!transaction) {
@@ -147,9 +153,9 @@ export async function getTransactionStatus(txHash: string): Promise<{
 }
 
 // Convert between TRON and Ethereum addresses (for cross-chain operations)
-export function convertEthToTronAddress(ethAddress: string): string {
+export async function convertEthToTronAddress(ethAddress: string): Promise<string> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     return tron.address.fromHex(ethAddress);
   } catch (error) {
     logger.error('Failed to convert ETH to TRON address', { ethAddress, error });
@@ -157,9 +163,9 @@ export function convertEthToTronAddress(ethAddress: string): string {
   }
 }
 
-export function convertTronToEthAddress(tronAddress: string): string {
+export async function convertTronToEthAddress(tronAddress: string): Promise<string> {
   try {
-    const tron = getTronWeb();
+    const tron = await getTronWebInstance();
     return tron.address.toHex(tronAddress);
   } catch (error) {
     logger.error('Failed to convert TRON to ETH address', { tronAddress, error });

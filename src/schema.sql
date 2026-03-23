@@ -59,6 +59,18 @@ CREATE TABLE wdk_wallets (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- TRON wallets table for TRON network wallet management
+CREATE TABLE tron_wallets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL UNIQUE,
+  address TEXT NOT NULL UNIQUE,
+  encrypted_data TEXT NOT NULL, -- Encrypted private key and mnemonic
+  wallet_type TEXT DEFAULT 'tron',
+  network TEXT DEFAULT 'tron',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_agent_logs_user_id ON agent_logs(user_id);
 CREATE INDEX idx_agent_logs_executed_at ON agent_logs(executed_at DESC);
@@ -66,3 +78,5 @@ CREATE INDEX idx_goals_user_id ON goals(user_id);
 CREATE INDEX idx_goals_priority ON goals(priority ASC);
 CREATE INDEX idx_wdk_wallets_user_id ON wdk_wallets(user_id);
 CREATE INDEX idx_wdk_wallets_address ON wdk_wallets(address);
+CREATE INDEX idx_tron_wallets_user_id ON tron_wallets(user_id);
+CREATE INDEX idx_tron_wallets_address ON tron_wallets(address);

@@ -6,6 +6,8 @@ export const GET = withSecurity(async (req: Request) => {
   const { searchParams } = new URL(req.url)
   const userIdParam = searchParams.get('userId')
   
+  logger.info('Goals API called', { userId: userIdParam })
+  
   if (!userIdParam) {
     return Response.json({ error: 'userId required' }, { status: 400 })
   }
