@@ -14,6 +14,7 @@ interface HealthStatus {
     baseRpc: { healthy: boolean; latency: number; error?: string };
     yoApi: { healthy: boolean; latency: number; error?: string };
     privy: { healthy: boolean; latency: number; error?: string };
+    encryption: { healthy: boolean; error?: string };
   };
 }
 
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
     baseRpc: { healthy: false, latency: 0 },
     yoApi: { healthy: false, latency: 0 },
     privy: { healthy: false, latency: 0 },
+    encryption: { healthy: false },
   };
 
   // Check database
@@ -105,6 +107,23 @@ export async function GET(req: Request) {
     services.privy = {
       healthy: false,
       latency: Date.now() - start,
+      error: err instanceof Error ? err.message : 'Unknown error'
+    };
+  }
+
+  // Check encryption key
+  try {
+    const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error('WALLET_ENCRYPTION_KEY not set');
+    }
+    if (!/^[a-fA-F0-9]{64}$/.test(encryptionKey)) {
+      throw new Error('WALLET_ENCRYPTION_KEY must be 64 hex characters');
+    }
+    services.encryption = { healthy: true };
+  } catch (err) {
+    services.encryption = {
+      healthy: false,
       error: err instanceof Error ? err.message : 'Unknown error'
     };
   }

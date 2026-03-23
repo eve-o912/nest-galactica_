@@ -36,46 +36,80 @@ export function usePureWDKWallet() {
 
   // Fetch wallet info
   const fetchWallet = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn('Cannot fetch wallet: no userId');
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/wdk/pure/balance?userId=${userId}`, {
+      console.log('Fetching wallet for userId:', userId);
+      
+      const response = await fetch(`/api/wdk/pure/balance?userId=${userId}&chain=base`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('Fetch response status:', response.status);
+
       if (!response.ok) {
         if (response.status === 404) {
-          // Wallet doesn't exist yet
+          console.log('Wallet not found (404), user needs to create one');
           setWallet(null);
+          setError(null); // Clear error since 404 is expected state
           return;
         }
-        throw new Error('Failed to fetch wallet');
+        
+        const errorData = await response.json().catch(() => ({ 
+          error: `HTTP ${response.status}` 
+        }));
+        
+        console.error('API error:', errorData);
+        throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Wallet data received:', {
+        success: data.success,
+        hasAddress: !!data.address,
+        chain: data.chain,
+        tokenCount: data.tokens?.length || 0
+      });
       
-      if (data.success) {
-        setWallet({
-          address: data.address,
-          publicKey: data.publicKey,
-          balance: {
-            eth: data.native?.formatted || '0',
-            usdt: data.tokens?.find((t: any) => t.symbol === 'USDT')?.formatted || '0',
-            usdc: data.tokens?.find((t: any) => t.symbol === 'USDC')?.formatted || '0',
-          },
-          chain: data.chain || 'base',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+      if (!data.success || !data.address) {
+        throw new Error(data.message || 'Invalid wallet data received');
       }
+
+      const walletInfo = {
+        address: data.address,
+        publicKey: data.publicKey || '',
+        balance: {
+          eth: String(data.native?.formatted || 0),
+          usdt: String(
+            data.tokens?.find((t: any) => t.symbol === 'USDT')?.formatted || 0
+          ),
+          usdc: String(
+            data.tokens?.find((t: any) => t.symbol === 'USDC')?.formatted || 0
+          ),
+        },
+        chain: data.chain || 'base',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      console.log('Setting wallet info:', walletInfo);
+      setWallet(walletInfo);
+      setError(null);
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch wallet');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch wallet';
+      console.error('Fetch wallet error:', errorMessage, err);
+      setError(errorMessage);
+      setWallet(null);
     } finally {
       setLoading(false);
     }

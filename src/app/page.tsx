@@ -161,6 +161,69 @@ export default function NestApp() {
   }
 
   const renderContent = () => {
+    // Show onboarding for new users
+    if (!authenticated && !isOnboarding) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="max-w-md w-full mx-auto text-center">
+            <div className="mb-8">
+              <img src="/nest-logo.png" alt="Nest" className="w-16 h-16 mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                Welcome to Nest
+              </h1>
+              <p className="text-lg text-neutral-600 dark:text-neutral-400">
+                Goal-based DeFi savings platform
+              </p>
+            </div>
+            
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-8 mb-6">
+              <h2 className="text-xl font-semibold mb-4">Get Started</h2>
+              <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+                Create your wallet to start saving with automated DeFi strategies. 
+                No complex setup required - just sign up and start saving.
+              </p>
+              
+              <Button
+                onClick={() => {
+                  const { createWallet } = usePureWDKWallet();
+                  createWallet().then(() => {
+                    setIsOnboarding(false);
+                  }).catch(err => {
+                    console.error('Failed to create wallet:', err);
+                    alert('Failed to create wallet. Please try again.');
+                  });
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg"
+                size="lg"
+              >
+                Sign Up & Create Wallet
+              </Button>
+              
+              <div className="mt-6 text-sm text-neutral-500">
+                <p>✓ Free wallet creation</p>
+                <p>✓ No gas fees for setup</p>
+                <p>✓ Automated savings strategies</p>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={() => setIsOnboarding(true)}
+                className="text-neutral-600 dark:text-neutral-400"
+              >
+                Skip to Demo
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isOnboarding) {
+      return <Onboarding onComplete={() => setIsOnboarding(false)} />;
+    }
+
     switch (activeTab) {
       case 'overview':
         return (
@@ -293,6 +356,35 @@ export default function NestApp() {
 
             <div className="flex items-center gap-3">
               <PureWDKLoginButton />
+              {!authenticated ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    // Trigger wallet creation for new users
+                    const { createWallet } = usePureWDKWallet();
+                    createWallet().then(() => {
+                      // Refresh page after wallet creation
+                      window.location.reload();
+                    }).catch(err => {
+                      console.error('Failed to create wallet:', err);
+                      alert('Failed to create wallet. Please try again.');
+                    });
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                >
+                  Sign Up
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-green-600 font-medium">
+                    ✓ Connected
+                  </span>
+                  <span className="text-sm text-neutral-500">
+                    {wallet?.address?.slice(0, 6)}...{wallet?.address?.slice(-4)}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center"
@@ -329,6 +421,27 @@ export default function NestApp() {
                     {tab.label}
                   </button>
                 ))}
+                
+                {!authenticated && (
+                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                    <Button
+                      onClick={() => {
+                        const { createWallet } = usePureWDKWallet();
+                        createWallet().then(() => {
+                          setIsMobileMenuOpen(false);
+                          window.location.reload();
+                        }).catch(err => {
+                          console.error('Failed to create wallet:', err);
+                          alert('Failed to create wallet. Please try again.');
+                        });
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      size="sm"
+                    >
+                      Sign Up & Create Wallet
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
