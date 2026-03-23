@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { restoreEVMWallet } from '@/lib/wdk/client';
+import { createWDKClient } from '@/lib/wdk/client';
 import { decrypt } from '@/lib/wdk/crypto';
 import { logger } from '@/lib/retry';
-import { parseEther } from 'viem';
 
 const WALLET_ENCRYPTION_KEY = process.env.WALLET_ENCRYPTION_KEY;
 
@@ -10,14 +9,14 @@ if (!WALLET_ENCRYPTION_KEY) {
   throw new Error('WALLET_ENCRYPTION_KEY is required');
 }
 
-// POST /api/wdk/wallet/sign - Sign and send transaction
+// POST /api/wdk/wallet/sign/message - Sign message
 export async function POST(request: NextRequest) {
   try {
-    const { userId, to, value, data, usePaymaster = false } = await request.json();
+    const { userId, message } = await request.json();
 
-    if (!userId || !to) {
+    if (!userId || !message) {
       return NextResponse.json(
-        { error: 'User ID and recipient address are required' },
+        { error: 'User ID and message are required' },
         { status: 400 }
       );
     }
@@ -41,45 +40,34 @@ export async function POST(request: NextRequest) {
       await decrypt(walletRecord.encrypted_data, WALLET_ENCRYPTION_KEY)
     );
 
+    // Create WDK client
+    const wdkClient = await createWDKClient();
+    
     // Create wallet instance
-    const wallet = await restoreEVMWallet({
+    const wallet = wdkClient.restoreWallet({
+      type: 'evm',
       address: decryptedData.address,
       privateKey: decryptedData.privateKey,
       mnemonic: decryptedData.mnemonic,
-      useAccountAbstraction: false,
+      network: 'base',
+      accountAbstraction: true
     });
 
-    // Prepare transaction
-    const tx = {
-      to: to as `0x${string}`,
-      value: value ? parseEther(value) : BigInt(0),
-      data: data || '0x',
-    };
+    // Sign message
+    const signature = await wallet.signMessage(message);
 
-    // Mock transaction signing since WDK is not fully integrated
-    const txHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-    
-    logger.info('Transaction sent (mock)', { 
-      userId, 
-      txHash, 
-      to, 
-      value: value || '0',
-      usePaymaster 
-    });
+    logger.info('Message signed', { userId, message: message.substring(0, 50) });
 
     return NextResponse.json({
       success: true,
-      txHash,
-      blockNumber: Math.floor(Math.random() * 1000000),
-      gasUsed: "21000",
-      effectiveGasPrice: "1000000000",
-      paymasterUsed: usePaymaster
+      signature,
+      address: decryptedData.address
     });
 
   } catch (error) {
-    logger.error('Failed to send transaction', error);
+    logger.error('Failed to sign message', error);
     return NextResponse.json(
-      { error: 'Failed to send transaction', details: error.message },
+      { error: 'Failed to sign message' },
       { status: 500 }
     );
   }
