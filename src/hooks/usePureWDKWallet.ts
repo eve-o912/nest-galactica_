@@ -42,7 +42,7 @@ export function usePureWDKWallet() {
     setError(null);
 
     try {
-      const response = await fetch('/api/wdk/pure/balance', {
+      const response = await fetch(`/api/wdk/pure/balance?userId=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

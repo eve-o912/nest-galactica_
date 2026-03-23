@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PureWDKManager, TOKEN_ADDRESSES } from '@/lib/wdk/pure-wallet';
+import { WDKManager, TOKEN_ADDRESSES } from '@/lib/wdk/wdk-integration';
 import { decrypt } from '@/lib/wdk/crypto';
 import { logger } from '@/lib/retry';
 import { query } from '@/lib/db';
@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
       await decrypt(walletRecord[0].encrypted_data, WALLET_ENCRYPTION_KEY)
     );
 
-    // Get wallet instance
-    const wallet = PureWDKManager.getWallet({
+    // Get WDK wallet instance
+    const wallet = WDKManager.getWallet({
       userId,
       mnemonic: decryptedData.mnemonic,
       privateKey: decryptedData.privateKey,
