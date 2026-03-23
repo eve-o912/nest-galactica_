@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 import { 
   Bot, 
   Settings, 
@@ -28,8 +28,6 @@ import {
   Minus,
   Send,
 } from 'lucide-react';
-import { createWalletClient, createPublicClient, custom, http, parseUnits, encodeFunctionData } from 'viem';
-import { base } from 'viem/chains';
 import { Button } from '@/components/ui';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -65,26 +63,16 @@ interface Goal {
 }
 
 export function AgentPanel() {
-  const { user, authenticated, ready } = usePrivy();
-  const { wallets } = useWallets();
+  const { user, authenticated, ready, wallet } = usePureWDKWallet();
   const userId = user?.id;
-  const walletAddress = user?.wallet?.address;
-  
-  const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
-  const YOUSD_VAULT = '0x0000000f926268be77Ab7e1d17E4e4C7D4b28a65' as const;
-
-  const viemPublicClient = createPublicClient({
-    chain: base,
-    transport: http('https://mainnet.base.org'),
-  });
+  const walletAddress = wallet?.address;
 
   // Debug wallet address format
   useEffect(() => {
     console.log('=== WALLET DEBUG ===');
     console.log('Wallet address:', walletAddress);
-    console.log('Wallet type:', user?.wallet?.walletClientType);
     console.log('User ID:', userId);
-    console.log('Full user object:', user);
+    console.log('Wallet object:', wallet);
   }, [userId, walletAddress]);
 
   const [tab, setTab] = useState<'setup' | 'activity'>('setup');
@@ -93,7 +81,7 @@ export function AgentPanel() {
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoal, setSelectedGoal] = useState('');
-  const [balances, setBalances] = useState<Balances>({ vault: 0, walletUSDT: 0, eth: '0' });
+  const [balances, setBalances] = useState<Balances>({ vault: 0, walletUSDC: 0, eth: '0' });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'deposit' | 'withdraw' | null>(null);
   
@@ -141,87 +129,6 @@ export function AgentPanel() {
     return () => clearInterval(interval);
   }, [userId, walletAddress]);
 
-  async function executeDepositClientSide(amount: number, goalName: string) {
-    const wallet = wallets.find(w => w.address.toLowerCase() === walletAddress?.toLowerCase());
-    if (!wallet) throw new Error('Wallet not found');
-
-    // Switch to Base
-    await wallet.switchChain(8453);
-
-    const provider = await wallet.getEthereumProvider();
-    const walletClient = createWalletClient({
-      chain: base,
-      transport: custom(provider),
-    });
-
-    const [address] = await walletClient.getAddresses();
-    const amountRaw = parseUnits(amount.toFixed(6), 6);
-
-    // Check allowance
-    const allowance = await viemPublicClient.readContract({
-      address: USDC_ADDRESS,
-      abi: [{
-        name: 'allowance', type: 'function', stateMutability: 'view',
-        inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
-        outputs: [{ name: '', type: 'uint256' }],
-      }] as const,
-      functionName: 'allowance',
-      args: [address, YOUSD_VAULT],
-    });
-
-    // Approve if needed
-    if (allowance < amountRaw) {
-      const approveTxHash = await walletClient.sendTransaction({
-        account: address,
-        to: USDC_ADDRESS,
-        data: encodeFunctionData({
-          abi: [{
-              name: 'approve', type: 'function', stateMutability: 'nonpayable',
-              inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
-              outputs: [{ name: '', type: 'bool' }],
-            }] as const,
-          functionName: 'approve',
-          args: [YOUSD_VAULT, amountRaw],
-        }),
-      });
-      await viemPublicClient.waitForTransactionReceipt({ hash: approveTxHash });
-    }
-
-    // Deposit
-    const depositTxHash = await walletClient.sendTransaction({
-      account: address,
-      to: YOUSD_VAULT,
-      data: encodeFunctionData({
-        abi: [{
-            name: 'deposit', type: 'function', stateMutability: 'nonpayable',
-            inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }],
-            outputs: [{ name: '', type: 'uint256' }],
-          }] as const,
-        functionName: 'deposit',
-        args: [amountRaw, address],
-      }),
-    });
-
-    const receipt = await viemPublicClient.waitForTransactionReceipt({ hash: depositTxHash });
-    if (receipt.status !== 'success') throw new Error('Transaction reverted');
-
-    // Record in DB via lightweight endpoint
-    await fetch('/api/agent/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        recordDeposit: {
-          walletAddress,
-          goalName,
-          amountUsdc: amount,
-          txHash: depositTxHash,
-        }
-      }),
-    });
-
-    return depositTxHash;
-  }
 
   async function fetchBalances() {
     if (!walletAddress) return;
@@ -333,19 +240,9 @@ export function AgentPanel() {
     setDepositError(null);
     setDepositSuccess(null);
 
-    const isEmbedded = user?.wallet?.walletClientType === 'privy';
 
     try {
-      if (!isEmbedded) {
-        // MetaMask or other external wallet — sign in browser
-        const txHash = await executeDepositClientSide(depositAmount, selectedGoal);
-        setDepositSuccess({ txHash, amount: depositAmount });
-        await fetchLogs();
-        await fetchBalances();
-        return;
-      }
-
-      // Privy embedded wallet — server-side signing (existing flow)
+      // Pure WDK handles everything server-side
       const res = await fetch('/api/agent/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -504,9 +401,9 @@ export function AgentPanel() {
           <p className="text-xs text-neutral-400">yoUSD on Base</p>
         </div>
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4">
-          <p className="text-sm text-neutral-500 mb-1">Wallet USDT</p>
+          <p className="text-sm text-neutral-500 mb-1">Wallet USDC</p>
           <p className="text-2xl font-bold text-neutral-900 dark:text-white">
-            ${balances?.walletUSDT?.toFixed(2) ?? '0.00'}
+            ${balances?.walletUSDC?.toFixed(2) ?? '0.00'}
           </p>
           <p className="text-xs text-neutral-400">Available to deposit</p>
         </div>
