@@ -94,7 +94,7 @@ const TABS = [
   { id: 'risks', label: 'Risks', icon: Shield },
 ];
 
-export default function NestApp() {
+function NestApp() {
   const { user, authenticated, ready, createWallet } = usePureWDKWallet();
   const userId = user?.id;
   const [activeTab, setActiveTab] = useState('overview');
