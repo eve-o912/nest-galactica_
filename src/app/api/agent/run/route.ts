@@ -34,27 +34,29 @@ const AGENT_TOOLS = [{
   functionDeclarations: [
     {
       name: 'deposit_to_goal',
-      description: 'Deposit USDC into a savings goal via YO Protocol yoUSD vault on Base. Real on-chain transaction.',
+      description: 'Deposit USDC/USDT into a savings goal via YO Protocol yoUSD vault on Base. Real on-chain transaction.',
       parameters: {
         type: SchemaType.OBJECT,
         properties: {
           goal_name: { type: SchemaType.STRING, description: 'Exact goal name' },
           amount_usdc: { type: SchemaType.NUMBER, description: 'USDC amount (min $1)' },
+          token_type: { type: SchemaType.STRING, enum: ['USDC', 'USDT'], description: 'Token type to deposit' },
           reason: { type: SchemaType.STRING, description: 'Plain English reason for user' },
         },
-        required: ['goal_name', 'amount_usdc', 'reason'],
+        required: ['goal_name', 'amount_usdc', 'token_type', 'reason'],
       },
     },
     {
       name: 'sweep_idle_usdc',
-      description: 'Sweep idle USDC from wallet into highest priority incomplete goal.',
+      description: 'Sweep idle USDC/USDT from wallet into highest priority incomplete goal.',
       parameters: {
         type: SchemaType.OBJECT,
         properties: {
           amount_usdc: { type: SchemaType.NUMBER },
+          token_type: { type: SchemaType.STRING, enum: ['USDC', 'USDT'], description: 'Token type to sweep' },
           reason: { type: SchemaType.STRING },
         },
-        required: ['amount_usdc', 'reason'],
+        required: ['amount_usdc', 'token_type', 'reason'],
       },
     },
     {
@@ -64,9 +66,48 @@ const AGENT_TOOLS = [{
         type: SchemaType.OBJECT,
         properties: {
           goal_name: { type: SchemaType.STRING },
+          token_type: { type: SchemaType.STRING, enum: ['USDC', 'USDT'], description: 'Token type to use' },
           reason: { type: SchemaType.STRING },
         },
-        required: ['goal_name', 'reason'],
+        required: ['goal_name', 'token_type', 'reason'],
+      },
+    },
+    {
+      name: 'rebalance_portfolio',
+      description: 'Rebalance portfolio between USDC and USDT based on market conditions and user preferences.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          target_usdt_percentage: { type: SchemaType.NUMBER, description: 'Target USDT allocation (0-100)' },
+          reason: { type: SchemaType.STRING, description: 'Reason for rebalancing' },
+        },
+        required: ['target_usdt_percentage', 'reason'],
+      },
+    },
+    {
+      name: 'bridge_to_tron',
+      description: 'Bridge USDT from Base to TRON network for native Tether operations.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          amount_usdt: { type: SchemaType.NUMBER, description: 'USDT amount to bridge (min $5)' },
+          tron_address: { type: SchemaType.STRING, description: 'Target TRON address' },
+          reason: { type: SchemaType.STRING, description: 'Reason for bridging' },
+        },
+        required: ['amount_usdt', 'tron_address', 'reason'],
+      },
+    },
+    {
+      name: 'optimize_yield',
+      description: 'Move funds between different yield protocols based on APY comparison.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          protocol: { type: SchemaType.STRING, enum: ['YO', 'Aave', 'Compound'], description: 'Target protocol' },
+          amount_usdc: { type: SchemaType.NUMBER, description: 'Amount to move' },
+          reason: { type: SchemaType.STRING, description: 'Reason for optimization' },
+        },
+        required: ['protocol', 'amount_usdc', 'reason'],
       },
     },
     {

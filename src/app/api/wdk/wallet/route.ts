@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createWalletClient, http, parseEther, formatEther } from 'viem';
-import { base } from 'viem/chains';
+import { createWalletClient, restoreEVMWallet } from '@/lib/wdk/client';
 import { encrypt, decrypt } from '@/lib/wdk/crypto';
-import { createWDKClient } from '@/lib/wdk/client';
 import { withRetry, logger } from '@/lib/retry';
 
 const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
@@ -25,13 +23,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create WDK client
-    const wdkClient = await createWDKClient();
+    const wdkClient = await createWalletClient();
     
-    // Create EVM wallet with ERC-4337 support
-    const wallet = await wdkClient.createWallet({
-      type: 'evm',
-      network: 'base',
-      accountAbstraction: true
+    // Create EVM wallet with USDT bridge support
+    const wallet = await createEVMWallet({
+      mnemonic: undefined,
+      useAccountAbstraction: false, // Use basic EVM wallet for now
     });
 
     // Encrypt private key/seed phrase
@@ -112,6 +109,14 @@ export async function GET(request: NextRequest) {
       await decrypt(walletRecord.encrypted_data, WALLET_ENCRYPTION_KEY)
     );
 
+    // Restore wallet instance
+    const wallet = await restoreEVMWallet({
+      address: decryptedData.address,
+      privateKey: decryptedData.privateKey,
+      mnemonic: decryptedData.mnemonic,
+      useAccountAbstraction: false,
+    });
+
     // Create public client to get balance
     const publicClient = createWalletClient({
       chain: base,
@@ -124,9 +129,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      address: decryptedData.address,
-      balance: formatEther(balance),
-      publicKey: decryptedData.publicKey
+      address: wallet.address,
+      publicKey: wallet.publicKey
     });
 
   } catch (error) {

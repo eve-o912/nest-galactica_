@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createWalletClient, http, parseEther, formatUnits } from 'viem';
-import { base } from 'viem/chains';
+import { createWalletClient, restoreEVMWallet } from '@/lib/wdk/client';
 import { encrypt, decrypt } from '@/lib/wdk/crypto';
-import { createWDKClient } from '@/lib/wdk/client';
 import { withRetry, logger } from '@/lib/retry';
+import { parseEther } from 'viem';
 
 const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 const PAYMASTER_URL = process.env.PAYMASTER_URL;
@@ -45,17 +44,12 @@ export async function POST(request: NextRequest) {
       await decrypt(walletRecord.encrypted_data, WALLET_ENCRYPTION_KEY)
     );
 
-    // Create WDK client
-    const wdkClient = await createWDKClient();
-    
     // Create wallet instance
-    const wallet = wdkClient.restoreWallet({
-      type: 'evm',
+    const wallet = await restoreEVMWallet({
       address: decryptedData.address,
       privateKey: decryptedData.privateKey,
       mnemonic: decryptedData.mnemonic,
-      network: 'base',
-      accountAbstraction: true
+      useAccountAbstraction: false,
     });
 
     // Prepare transaction
@@ -63,8 +57,6 @@ export async function POST(request: NextRequest) {
       to: to as `0x${string}`,
       value: value ? parseEther(value) : BigInt(0),
       data: data || '0x',
-      gas: usePaymaster ? undefined : undefined, // Let provider estimate
-      gasPrice: usePaymaster ? undefined : undefined // Use paymaster if available
     };
 
     // Sign and send transaction
