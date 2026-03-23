@@ -45,7 +45,7 @@ const TABS = [
 ];
 
 export default function NestApp() {
-  const { user, authenticated, ready } = usePureWDKWallet();
+  const { user, authenticated, ready, createWallet } = usePureWDKWallet();
   const userId = user?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -185,9 +185,9 @@ export default function NestApp() {
               
               <Button
                 onClick={() => {
-                  const { createWallet } = usePureWDKWallet();
                   createWallet().then(() => {
                     setIsOnboarding(false);
+                    window.location.reload(); // Refresh to show authenticated state
                   }).catch(err => {
                     console.error('Failed to create wallet:', err);
                     alert('Failed to create wallet. Please try again.');
@@ -361,8 +361,6 @@ export default function NestApp() {
                   variant="outline" 
                   size="sm"
                   onClick={() => {
-                    // Trigger wallet creation for new users
-                    const { createWallet } = usePureWDKWallet();
                     createWallet().then(() => {
                       // Refresh page after wallet creation
                       window.location.reload();
@@ -426,7 +424,6 @@ export default function NestApp() {
                   <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <Button
                       onClick={() => {
-                        const { createWallet } = usePureWDKWallet();
                         createWallet().then(() => {
                           setIsMobileMenuOpen(false);
                           window.location.reload();

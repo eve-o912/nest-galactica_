@@ -153,12 +153,47 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    logger.error('Failed to get balances with WDK', {
-      error: error.message,
+    console.error('Balance API Error Details:', {
+      message: error.message,
       stack: error.stack,
       userId: userId || 'unknown',
-      chain: chain || 'unknown'
+      chain: chain || 'unknown',
+      hasEncryptionKey: !!WALLET_ENCRYPTION_KEY
     });
+    
+    // Return more specific error messages
+    if (error.message?.includes('Wallet not found')) {
+      return NextResponse.json(
+        { 
+          error: 'Wallet not found',
+          suggestion: 'Please create a wallet first',
+          debug: { userId, chain }
+        },
+        { status: 404 }
+      );
+    }
+    
+    if (error.message?.includes('Failed to decrypt')) {
+      return NextResponse.json(
+        { 
+          error: 'Wallet data corrupted',
+          suggestion: 'Please recreate your wallet',
+          debug: { userId }
+        },
+        { status: 500 }
+      );
+    }
+    
+    if (error.message?.includes('Invalid wallet data')) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid wallet configuration',
+          suggestion: 'Please contact support',
+          debug: { userId }
+        },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json(
       { 

@@ -106,7 +106,23 @@ export function usePureWDKWallet() {
       setError(null);
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch wallet';
+      let errorMessage = 'Failed to fetch wallet';
+      
+      if (err instanceof Error) {
+        // Handle specific error messages from API
+        if (err.message.includes('Wallet not found')) {
+          errorMessage = 'No wallet found. Please create a wallet first.';
+        } else if (err.message.includes('Wallet data corrupted')) {
+          errorMessage = 'Wallet data is corrupted. Please recreate your wallet.';
+        } else if (err.message.includes('Invalid wallet configuration')) {
+          errorMessage = 'Invalid wallet configuration. Please contact support.';
+        } else if (err.message.includes('Server configuration error')) {
+          errorMessage = 'Server configuration error. Please try again later.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       console.error('Fetch wallet error:', errorMessage, err);
       setError(errorMessage);
       setWallet(null);
