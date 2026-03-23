@@ -263,7 +263,7 @@ export function usePureWDKWallet() {
     if (userId && authenticated) {
       fetchWallet();
     }
-  }, [userId, authenticated, fetchWallet]);
+  }, [userId, fetchWallet]);
 
   return {
     wallet,
