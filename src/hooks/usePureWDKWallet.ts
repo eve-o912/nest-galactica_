@@ -117,7 +117,9 @@ export function usePureWDKWallet() {
         } else if (err.message.includes('Invalid wallet configuration')) {
           errorMessage = 'Invalid wallet configuration. Please contact support.';
         } else if (err.message.includes('Server configuration error')) {
-          errorMessage = 'Server configuration error. Please try again later.';
+          errorMessage = 'Server is not configured properly. Please contact administrator.';
+        } else if (err.message.includes('WALLET_ENCRYPTION_KEY')) {
+          errorMessage = 'Server security configuration is missing. Please contact support.';
         } else {
           errorMessage = err.message;
         }
@@ -164,8 +166,22 @@ export function usePureWDKWallet() {
         throw new Error(data.error || 'Failed to create wallet');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create wallet');
-      throw err;
+      let errorMessage = 'Failed to create wallet';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('Server configuration error')) {
+          errorMessage = 'Server is not configured properly. Please contact administrator.';
+        } else if (err.message.includes('WALLET_ENCRYPTION_KEY')) {
+          errorMessage = 'Server security configuration is missing. Please contact support.';
+        } else if (err.message.includes('User ID is required')) {
+          errorMessage = 'Invalid user session. Please refresh the page.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -244,10 +260,10 @@ export function usePureWDKWallet() {
 
   // Auto-fetch wallet on mount and when userId changes
   useEffect(() => {
-    if (userId) {
+    if (userId && authenticated) {
       fetchWallet();
     }
-  }, [userId, fetchWallet]);
+  }, [userId, authenticated, fetchWallet]);
 
   return {
     wallet,

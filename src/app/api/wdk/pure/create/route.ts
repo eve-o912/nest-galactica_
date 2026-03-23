@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Server configuration error',
-          debug: { hasEncryptionKey: false }
+          debug: { 
+            hasEncryptionKey: false,
+            solution: 'Please add WALLET_ENCRYPTION_KEY to environment variables'
+          }
         },
         { status: 500 }
       );

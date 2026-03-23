@@ -56,7 +56,7 @@ export default function NestApp() {
 
   // Fetch goals from database when user is authenticated
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !authenticated) return;
     
     const fetchGoals = async () => {
       try {
@@ -76,7 +76,7 @@ export default function NestApp() {
     };
 
     fetchGoals();
-  }, [userId]);
+  }, [userId, authenticated]);
 
   const handleAddGoal = () => {
     setEditingGoal(null);
