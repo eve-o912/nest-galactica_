@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWDKWallet } from '@/hooks/useWDKWallet';
+import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 import { Button } from '@/components/ui';
 import { 
   Wallet, 
@@ -23,19 +23,18 @@ export function WDKWalletTest() {
     authenticated,
     createWallet,
     sendTransaction,
-    signMessage,
     hasBalance,
     formatBalance,
-  } = useWDKWallet();
+  } = usePureWDKWallet();
 
   const [testTx, setTestTx] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [testSignature, setTestSignature] = useState('');
 
   const handleCreateWallet = async () => {
-    const address = await createWallet();
-    if (address) {
-      console.log('Wallet created:', address);
+    const result = await createWallet();
+    if (result) {
+      console.log('Wallet created successfully');
     }
   };
 
@@ -43,8 +42,8 @@ export function WDKWalletTest() {
     // Send 0.001 ETH to self (test transaction)
     const result = await sendTransaction({
       to: wallet?.address || '',
-      value: '0.001',
-      usePaymaster: true, // Try gasless first
+      amount: '0.001',
+      tokenType: 'eth',
     });
 
     if (result.success && result.txHash) {
@@ -52,19 +51,6 @@ export function WDKWalletTest() {
       console.log('Transaction sent:', result);
     } else {
       console.error('Transaction failed:', result.error);
-    }
-  };
-
-  const handleSignTestMessage = async () => {
-    const message = 'Hello from WDK Wallet Test! ' + Date.now();
-    const result = await signMessage(message);
-
-    if (result.success && result.signature) {
-      setTestMessage(message);
-      setTestSignature(result.signature);
-      console.log('Message signed:', result.signature);
-    } else {
-      console.error('Message signing failed:', result.error);
     }
   };
 
@@ -103,13 +89,13 @@ export function WDKWalletTest() {
           WDK Wallet Test
         </h2>
         <div className="flex items-center space-x-2">
-          {isConnected ? (
+          {wallet ? (
             <CheckCircle className="w-5 h-5 text-green-500" />
           ) : (
             <XCircle className="w-5 h-5 text-red-500" />
           )}
           <span className="text-sm text-gray-600">
-            {isConnected ? 'Connected' : 'Not Connected'}
+            {wallet ? 'Connected' : 'Not Connected'}
           </span>
         </div>
       </div>
@@ -120,7 +106,7 @@ export function WDKWalletTest() {
         </div>
       )}
 
-      {!hasWallet ? (
+      {!wallet ? (
         <div className="text-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
           <Wallet className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <h3 className="text-lg font-semibold mb-2">No WDK Wallet</h3>
@@ -185,20 +171,6 @@ export function WDKWalletTest() {
               )}
               Send Test Transaction (0.001 ETH)
             </Button>
-
-            <Button
-              onClick={handleSignTestMessage}
-              disabled={loading}
-              variant="outline"
-              className="w-full"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Wallet className="w-4 h-4 mr-2" />
-              )}
-              Sign Test Message
-            </Button>
           </div>
 
           {/* Test Results */}
@@ -223,34 +195,6 @@ export function WDKWalletTest() {
                       className="text-blue-500 hover:text-blue-700"
                     >
                       <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {testSignature && (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <h4 className="font-semibold text-blue-800 mb-2">Message Signed!</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Message:</span>
-                  <span className="font-mono text-xs bg-white px-2 py-1 rounded max-w-xs truncate">
-                    {testMessage}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Signature:</span>
-                  <div className="flex items-center space-x-2">
-                    <code className="bg-white px-2 py-1 rounded text-xs max-w-xs truncate">
-                      {testSignature.slice(0, 10)}...{testSignature.slice(-8)}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(testSignature)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <Copy className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

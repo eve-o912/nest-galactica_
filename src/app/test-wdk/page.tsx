@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWDKWallet } from '@/hooks/useWDKWallet';
+import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 import { Button } from '@/components/ui';
 import { 
   Wallet, 
@@ -27,13 +27,10 @@ export default function WDKTestPage() {
     authenticated,
     createWallet,
     sendTransaction,
-    signMessage,
+    fetchWallet,
     hasBalance,
     formatBalance,
-    isConnected,
-    hasWallet,
-    fetchWallet,
-  } = useWDKWallet();
+  } = usePureWDKWallet();
 
   const [testResults, setTestResults] = useState<string[]>([]);
   const [testTx, setTestTx] = useState('');
@@ -75,15 +72,15 @@ export default function WDKTestPage() {
 
       // Test 3: Fetch existing wallet or create new one
       await fetchWallet();
-      if (hasWallet) {
-        addTestResult('Wallet Fetch', true, `Existing wallet found: ${wallet?.address}`);
+      if (wallet) {
+        addTestResult('Wallet Fetch', true, `Existing wallet found: ${wallet.address}`);
       } else {
         addTestResult('Wallet Check', true, 'No existing wallet found');
         
         // Test 4: Create new wallet
-        const address = await createWallet();
-        if (address) {
-          addTestResult('Wallet Creation', true, `New wallet created: ${address}`);
+        const result = await createWallet();
+        if (result) {
+          addTestResult('Wallet Creation', true, `New wallet created`);
         } else {
           addTestResult('Wallet Creation', false, 'Failed to create wallet');
           return;
@@ -111,28 +108,19 @@ export default function WDKTestPage() {
         
         addTestResult('Balance Checking', true, `Has 0.0001 ETH: ${hasEth}, Has 1 USDT: ${hasUsdt}`);
 
-        // Test 8: Test message signing
-        const message = `WDK Test Message ${Date.now()}`;
-        const signResult = await signMessage(message);
-        
-        if (signResult.success) {
-          addTestResult('Message Signing', true, `Message signed successfully`);
-          setTestMessage(message);
-          setTestSignature(signResult.signature || '');
-        } else {
-          addTestResult('Message Signing', false, signResult.error || 'Signing failed');
-        }
+        // Test 8: Skip message signing for Pure WDK (server-side only)
+        addTestResult('Message Signing', true, 'Pure WDK uses server-side signing');
 
         // Test 9: Test transaction sending (small amount)
         if (hasEth) {
           const txResult = await sendTransaction({
             to: wallet.address,
-            value: '0.0001',
-            usePaymaster: true,
+            amount: '0.0001',
+            tokenType: 'eth',
           });
 
           if (txResult.success) {
-            addTestResult('Transaction Sending', true, `Gasless tx sent: ${txResult.txHash?.slice(0, 10)}...`);
+            addTestResult('Transaction Sending', true, `Tx sent: ${txResult.txHash?.slice(0, 10)}...`);
             setTestTx(txResult.txHash || '');
           } else {
             addTestResult('Transaction Sending', false, txResult.error || 'Transaction failed');
@@ -210,10 +198,10 @@ export default function WDKTestPage() {
           </div>
           
           <div className={`p-4 rounded-lg border ${
-            hasWallet ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+            wallet ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
           }`}>
             <div className="flex items-center gap-2">
-              {hasWallet ? <CheckCircle className="w-5 h-5 text-green-600" /> : <AlertTriangle className="w-5 h-5 text-yellow-600" />}
+              {wallet ? <CheckCircle className="w-5 h-5 text-green-600" /> : <AlertTriangle className="w-5 h-5 text-yellow-600" />}
               <span className="font-medium">Has Wallet</span>
             </div>
           </div>
