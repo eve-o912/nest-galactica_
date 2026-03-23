@@ -4,5 +4,9 @@
       "path": "/api/agent/run",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install"
 }
