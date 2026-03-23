@@ -1,6 +1,3 @@
-import { WDK } from '@tetherto/wdk';
-import { EVMPocket } from '@tetherto/wdk-wallet-evm';
-import { Usdt0ProtocolEvm } from '@tetherto/wdk-protocol-bridge-usdt0-evm';
 import { createPublicClient, http } from 'viem';
 import { base, mainnet, polygon, arbitrum } from 'viem/chains';
 import { logger } from '@/lib/retry';
@@ -82,11 +79,11 @@ export function getPublicClient(chainName: keyof typeof CHAIN_CONFIGS) {
   return publicClients[chainName];
 }
 
-// WDK client instances for each chain
-const wdkClients: Record<string, WDK> = {};
+// WDK client instances for each chain (placeholder for future WDK integration)
+const wdkClients: Record<string, any> = {};
 
-// Create WDK client for specific chain
-export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<WDK> {
+// Create WDK client for specific chain (placeholder)
+export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<any> {
   if (wdkClients[chainName]) {
     return wdkClients[chainName];
   }
@@ -94,36 +91,39 @@ export async function createWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'b
   const config = CHAIN_CONFIGS[chainName];
 
   try {
-    // Initialize WDK with EVM and USDT bridge support for the specific chain
-    wdkClients[chainName] = new WDK({
+    // Placeholder for future WDK integration
+    // For now, return a mock client that provides basic functionality
+    const mockClient = {
       network: chainName,
       rpcUrl: config.rpcUrl,
-      paymasterUrl: config.paymasterUrl,
-      bundlerUrl: config.bundlerUrl,
-      chains: [config.chain],
-      pockets: [
-        new EVMPocket({
-          chain: config.chain,
-          rpcUrl: config.rpcUrl,
-        }),
-        new Usdt0ProtocolEvm({
-          chain: config.chain,
-          rpcUrl: config.rpcUrl,
-          bridgeMaxFee: 1000000000000000n,
-        }),
-      ],
-    });
+      chain: config.chain,
+      createWallet: async (walletConfig: any) => {
+        // Mock wallet creation - would use actual WDK in production
+        return {
+          address: `0x${Math.random().toString(16).substr(2, 40)}`,
+          publicKey: `0x${Math.random().toString(16).substr(2, 130)}`,
+        };
+      },
+      restoreWallet: async (walletData: any) => {
+        // Mock wallet restoration
+        return {
+          address: walletData.address,
+          publicKey: `0x${Math.random().toString(16).substr(2, 130)}`,
+        };
+      },
+    };
 
-    logger.info(`WDK client initialized for ${chainName} with USDT bridge support`);
-    return wdkClients[chainName];
+    wdkClients[chainName] = mockClient;
+    logger.info(`Mock WDK client created for ${chainName} (placeholder for real WDK integration)`);
+    return mockClient;
   } catch (error) {
-    logger.error(`Failed to initialize WDK client for ${chainName}`, error);
-    throw new Error(`WDK client initialization failed for ${chainName}`);
+    logger.error(`Failed to create mock WDK client for ${chainName}`, error);
+    throw new Error(`WDK client creation failed for ${chainName}`);
   }
 }
 
 // Get WDK client for specific chain
-export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<WDK> {
+export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base'): Promise<any> {
   if (!wdkClients[chainName]) {
     return await createWDKClient(chainName);
   }
@@ -131,7 +131,7 @@ export async function getWDKClient(chainName: keyof typeof CHAIN_CONFIGS = 'base
 }
 
 // Get all WDK clients
-export async function getAllWDKClients(): Promise<Record<string, WDK>> {
+export async function getAllWDKClients(): Promise<Record<string, any>> {
   const chainNames = Object.keys(CHAIN_CONFIGS) as Array<keyof typeof CHAIN_CONFIGS>;
   
   for (const chainName of chainNames) {
@@ -146,7 +146,7 @@ export async function getAllWDKClients(): Promise<Record<string, WDK>> {
 // Legacy compatibility
 export const publicClient = publicClients.base;
 
-// Wallet creation helper
+// Wallet creation helper (placeholder for future WDK integration)
 export async function createEVMWallet(options?: {
   useAccountAbstraction?: boolean;
   mnemonic?: string;
@@ -163,7 +163,7 @@ export async function createEVMWallet(options?: {
   return await client.createWallet(walletConfig);
 }
 
-// Wallet restoration helper
+// Wallet restoration helper (placeholder for future WDK integration)
 export async function restoreEVMWallet(walletData: {
   address: string;
   privateKey?: string;
