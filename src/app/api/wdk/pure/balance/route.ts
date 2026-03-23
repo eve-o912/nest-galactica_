@@ -13,8 +13,11 @@ export async function GET(request: NextRequest) {
   let chain: string | null = null;
   
   try {
+    logger.info('Balance API called', { url: request.url });
+
     // Check if encryption key is available
     if (!WALLET_ENCRYPTION_KEY) {
+      logger.error('WALLET_ENCRYPTION_KEY not set', new Error('Missing environment variable'));
       return NextResponse.json(
         { error: 'Server configuration error: WALLET_ENCRYPTION_KEY not set' },
         { status: 500 }
@@ -24,6 +27,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     userId = searchParams.get('userId');
     chain = searchParams.get('chain') || 'base';
+
+    logger.info('Balance request parameters', { userId, chain });
 
     if (!userId) {
       return NextResponse.json(
@@ -38,7 +43,14 @@ export async function GET(request: NextRequest) {
       [userId]
     );
 
+    logger.info('Wallet query result', { 
+      userId, 
+      walletCount: walletRecord.length,
+      hasWallet: walletRecord.length > 0 
+    });
+
     if (!walletRecord.length) {
+      logger.info('No wallet found for user', { userId });
       return NextResponse.json(
         { error: 'Wallet not found' },
         { status: 404 }
