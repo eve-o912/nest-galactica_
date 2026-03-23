@@ -6,13 +6,17 @@ import { query } from '@/lib/db';
 
 const WALLET_ENCRYPTION_KEY = process.env.WALLET_ENCRYPTION_KEY;
 
-if (!WALLET_ENCRYPTION_KEY) {
-  throw new Error('WALLET_ENCRYPTION_KEY is required');
-}
-
 // GET /api/wdk/pure/balance - Get wallet balances
 export async function GET(request: NextRequest) {
   try {
+    // Check if encryption key is available
+    if (!WALLET_ENCRYPTION_KEY) {
+      return NextResponse.json(
+        { error: 'Server configuration error: WALLET_ENCRYPTION_KEY not set' },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const chain = searchParams.get('chain') || 'base';
