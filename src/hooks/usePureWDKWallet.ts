@@ -258,19 +258,22 @@ export function usePureWDKWallet() {
     }
   }, []);
 
+  // Compute authenticated early
+  const authenticated = !!wallet;
+
   // Auto-fetch wallet on mount and when userId changes
   useEffect(() => {
     if (userId && authenticated) {
       fetchWallet();
     }
-  }, [userId, fetchWallet]);
+  }, [userId, authenticated, fetchWallet]);
 
   return {
     wallet,
     loading,
     error,
     userId,
-    authenticated: !!wallet,
+    authenticated,
     ready: true, // Always ready for pure WDK
     createWallet,
     sendTransaction,

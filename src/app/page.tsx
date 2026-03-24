@@ -128,7 +128,7 @@ function NestApp() {
     if (authenticated) {
       fetchGoals();
     }
-  }, [userId]);
+  }, [userId, authenticated]);
 
   const handleAddGoal = () => {
     setEditingGoal(null);
