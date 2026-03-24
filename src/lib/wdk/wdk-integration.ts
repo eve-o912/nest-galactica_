@@ -2,6 +2,8 @@ import { createPublicClient, http, createWalletClient, Chain } from 'viem';
 import { base, mainnet, polygon, arbitrum } from 'viem/chains';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { logger } from '@/lib/retry';
+import { entropyToMnemonic, validateMnemonic as validateMnemonicBip39 } from 'bip39';
+import { randomBytes } from 'crypto';
 
 // WDK-compatible wallet interface
 export interface WDKWallet {
@@ -356,16 +358,13 @@ export class WDKManager {
 
   // Generate mnemonic
   static generateMnemonic(): string {
-    const { entropyToMnemonic } = require('bip39');
-    const crypto = require('crypto');
-    const entropy = crypto.randomBytes(16);
+    const entropy = randomBytes(16);
     return entropyToMnemonic(entropy);
   }
 
   // Validate mnemonic
   static validateMnemonic(mnemonic: string): boolean {
-    const { validateMnemonic } = require('bip39');
-    return validateMnemonic(mnemonic);
+    return validateMnemonicBip39(mnemonic);
   }
 
   // Clear wallet instance
