@@ -153,7 +153,8 @@ export function usePureWDKWallet() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create wallet');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create wallet' }));
+        throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
