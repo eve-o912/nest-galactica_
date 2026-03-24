@@ -14,7 +14,6 @@ import {
   Flame,
   Menu,
   X,
-  Wallet,
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
@@ -59,15 +58,6 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Add debug component
-function DebugInfo() {
-  return (
-    <div className="fixed top-4 right-4 bg-green-500 text-white p-3 rounded-lg text-sm z-50 shadow-lg">
-      <div className="font-bold">✅ Nest Loaded</div>
-      <div className="text-xs">Dashboard Active</div>
-    </div>
-  );
-}
 import { Goal } from '@/lib/types';
 import { Button } from '@/components/ui';
 import { ChatInterface } from '@/components/chat-interface';
@@ -78,10 +68,9 @@ import { PortfolioHealth } from '@/components/portfolio-health';
 import { RiskEducation } from '@/components/risk-education';
 import { StreaksView } from '@/components/streaks-view';
 import { Onboarding } from '@/components/onboarding';
+import { useState, useEffect } from 'react';
 import { GoalModal } from '@/components/goal-modal';
 import { AgentPanel } from '@/components/AgentPanel';
-import { PureWDKLoginButton } from '@/components/pure-wdk-login-button';
-import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -95,16 +84,15 @@ const TABS = [
 ];
 
 function NestApp() {
-  const { user, authenticated, ready, createWallet } = usePureWDKWallet();
-  const userId = user?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [userId] = useState(() => `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  // Fetch goals from database when user is authenticated
+  // Fetch goals from database
   useEffect(() => {
     if (!userId) return;
     
@@ -113,7 +101,6 @@ function NestApp() {
         const res = await fetch(`/api/goals?userId=${userId}`);
         if (res.ok) {
           const goals = await res.json();
-          // Update portfolio with fetched goals
           setPortfolio(prev => prev ? {
             ...prev,
             goals: goals,
@@ -125,10 +112,8 @@ function NestApp() {
       }
     };
 
-    if (authenticated) {
-      fetchGoals();
-    }
-  }, [userId, authenticated]);
+    fetchGoals();
+  }, [userId]);
 
   const handleAddGoal = () => {
     setEditingGoal(null);
@@ -213,13 +198,15 @@ function NestApp() {
   }
 
   const renderContent = () => {
-    // Show onboarding for new users
-    if (!authenticated && !isOnboarding) {
+    // Show welcome screen for new users
+    if (!isOnboarding) {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="max-w-md w-full mx-auto text-center">
             <div className="mb-8">
-              <img src="/nest-logo.png" alt="Nest" className="w-16 h-16 mx-auto mb-4" />
+              <div className="w-16 h-16 bg-green-600 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                <span className="text-white font-bold text-2xl">N</span>
+              </div>
               <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
                 Welcome to Nest
               </h1>
@@ -231,41 +218,23 @@ function NestApp() {
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-8 mb-6">
               <h2 className="text-xl font-semibold mb-4">Get Started</h2>
               <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                Create your wallet to start saving with automated DeFi strategies. 
-                No complex setup required - just sign up and start saving.
+                Start saving with automated DeFi strategies. 
+                No complex setup required - just create an account and start saving.
               </p>
               
               <Button
-                onClick={() => {
-                  createWallet().then(() => {
-                    setIsOnboarding(false);
-                    window.location.reload(); // Refresh to show authenticated state
-                  }).catch(err => {
-                    console.error('Failed to create wallet:', err);
-                    alert('Failed to create wallet. Please try again.');
-                  });
-                }}
+                onClick={() => setIsOnboarding(true)}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg"
                 size="lg"
               >
-                Sign Up & Create Wallet
+                Get Started
               </Button>
               
               <div className="mt-6 text-sm text-neutral-500">
-                <p>✓ Free wallet creation</p>
-                <p>✓ No gas fees for setup</p>
+                <p>✓ Free account creation</p>
                 <p>✓ Automated savings strategies</p>
+                <p>✓ Goal-based tracking</p>
               </div>
-            </div>
-            
-            <div className="text-center">
-              <Button
-                variant="outline"
-                onClick={() => setIsOnboarding(true)}
-                className="text-neutral-600 dark:text-neutral-400"
-              >
-                Skip to Demo
-              </Button>
             </div>
           </div>
         </div>
@@ -407,34 +376,16 @@ function NestApp() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <PureWDKLoginButton />
-              {!authenticated ? (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    createWallet().then(() => {
-                      // Refresh page after wallet creation
-                      window.location.reload();
-                    }).catch(err => {
-                      console.error('Failed to create wallet:', err);
-                      alert('Failed to create wallet. Please try again.');
-                    });
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-                >
-                  Sign Up
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-green-600 font-medium">
-                    ✓ Connected
-                  </span>
-                  <span className="text-sm text-neutral-500">
-                    {wallet?.address?.slice(0, 6)}...{wallet?.address?.slice(-4)}
-                  </span>
-                </div>
-              )}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  alert('Sign up coming soon!');
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                Sign Up
+              </Button>
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center"
@@ -472,25 +423,18 @@ function NestApp() {
                   </button>
                 ))}
                 
-                {!authenticated && (
-                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <Button
-                      onClick={() => {
-                        createWallet().then(() => {
-                          setIsMobileMenuOpen(false);
-                          window.location.reload();
-                        }).catch(err => {
-                          console.error('Failed to create wallet:', err);
-                          alert('Failed to create wallet. Please try again.');
-                        });
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      size="sm"
-                    >
-                      Sign Up & Create Wallet
-                    </Button>
-                  </div>
-                )}
+                <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                  <Button
+                    onClick={() => {
+                      alert('Sign up coming soon!');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    size="sm"
+                  >
+                    Sign Up
+                  </Button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -539,11 +483,10 @@ function QuickStat({
   );
 }
 
-// Add debug wrapper
+// Simple app wrapper without debug
 function NestAppWithDebug() {
   return (
     <ErrorBoundary>
-      <DebugInfo />
       <NestApp />
     </ErrorBoundary>
   );
