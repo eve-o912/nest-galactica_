@@ -68,7 +68,6 @@ import { PortfolioHealth } from '@/components/portfolio-health';
 import { RiskEducation } from '@/components/risk-education';
 import { StreaksView } from '@/components/streaks-view';
 import { Onboarding } from '@/components/onboarding';
-import { useState, useEffect } from 'react';
 import { GoalModal } from '@/components/goal-modal';
 import { AgentPanel } from '@/components/AgentPanel';
 
