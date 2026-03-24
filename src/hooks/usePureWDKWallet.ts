@@ -258,6 +258,9 @@ export function usePureWDKWallet() {
     }
   }, []);
 
+  // Compute balance from wallet
+  const balance = wallet ? parseFloat(wallet.balance.usdc) : 0;
+
   // Compute authenticated early
   const authenticated = !!wallet;
 
@@ -280,6 +283,8 @@ export function usePureWDKWallet() {
     fetchWallet,
     hasBalance,
     formatBalance,
+    balance,
+    fetchBalance: fetchWallet,
     // Add compatibility with existing Privy interface
     login: async () => {
       if (!userId) return;

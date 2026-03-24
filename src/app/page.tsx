@@ -70,6 +70,7 @@ import { StreaksView } from '@/components/streaks-view';
 import { Onboarding } from '@/components/onboarding';
 import { GoalModal } from '@/components/goal-modal';
 import { AgentPanel } from '@/components/AgentPanel';
+import { usePureWDKWallet } from '@/hooks/usePureWDKWallet';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -83,15 +84,17 @@ const TABS = [
 ];
 
 function NestApp() {
+  const { user, authenticated, ready, createWallet, wallet, balance, fetchBalance } = usePureWDKWallet();
+  const userId = user?.id;
   const [activeTab, setActiveTab] = useState('overview');
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [userId] = useState(() => `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
-  // Fetch goals from database
+  // Fetch goals from database when user is authenticated
   useEffect(() => {
     if (!userId) return;
     
@@ -111,8 +114,11 @@ function NestApp() {
       }
     };
 
-    fetchGoals();
-  }, [userId]);
+    if (authenticated) {
+      fetchGoals();
+      fetchBalance();
+    }
+  }, [userId, authenticated, fetchBalance]);
 
   const handleAddGoal = () => {
     setEditingGoal(null);
@@ -197,8 +203,8 @@ function NestApp() {
   }
 
   const renderContent = () => {
-    // Show welcome screen for new users
-    if (!isOnboarding) {
+    // Show welcome screen for new users - create wallet flow
+    if (!authenticated && !isOnboarding) {
       return (
         <div className="h-full flex items-center justify-center">
           <div className="max-w-md w-full mx-auto text-center">
@@ -215,24 +221,46 @@ function NestApp() {
             </div>
             
             <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-8 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Get Started</h2>
+              <h2 className="text-xl font-semibold mb-4">Create Your Wallet</h2>
               <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                Start saving with automated DeFi strategies. 
-                No complex setup required - just create an account and start saving.
+                Sign up to create your WDK wallet and start saving with automated DeFi strategies. 
+                No complex setup required.
               </p>
               
               <Button
-                onClick={() => setIsOnboarding(true)}
+                onClick={async () => {
+                  setIsCreatingWallet(true);
+                  try {
+                    await createWallet();
+                    alert('Wallet created successfully! You can now fund it and start saving.');
+                  } catch (err: any) {
+                    console.error('Failed to create wallet:', err);
+                    alert(err.message || 'Failed to create wallet. Please try again.');
+                  } finally {
+                    setIsCreatingWallet(false);
+                  }
+                }}
+                disabled={isCreatingWallet}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg"
                 size="lg"
               >
-                Get Started
+                {isCreatingWallet ? 'Creating Wallet...' : 'Sign Up & Create Wallet'}
               </Button>
               
               <div className="mt-6 text-sm text-neutral-500">
-                <p>✓ Free account creation</p>
+                <p>✓ Free wallet creation</p>
+                <p>✓ No gas fees for setup</p>
                 <p>✓ Automated savings strategies</p>
-                <p>✓ Goal-based tracking</p>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsOnboarding(true)}
+                  className="w-full text-neutral-600 dark:text-neutral-400"
+                >
+                  Skip to Demo
+                </Button>
               </div>
             </div>
           </div>
@@ -375,16 +403,56 @@ function NestApp() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  alert('Sign up coming soon!');
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-              >
-                Sign Up
-              </Button>
+              {!authenticated ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={isCreatingWallet}
+                  onClick={async () => {
+                    setIsCreatingWallet(true);
+                    try {
+                      await createWallet();
+                      alert('Wallet created successfully! You can now fund it.');
+                    } catch (err: any) {
+                      console.error('Failed to create wallet:', err);
+                      alert(err.message || 'Failed to create wallet. Please try again.');
+                    } finally {
+                      setIsCreatingWallet(false);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                >
+                  {isCreatingWallet ? 'Creating...' : 'Sign Up'}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-neutral-500">Wallet</p>
+                    <p className="text-sm font-mono text-neutral-900 dark:text-white">
+                      {wallet?.address?.slice(0, 6)}...{wallet?.address?.slice(-4)}
+                    </p>
+                  </div>
+                  <div className="text-right hidden md:block">
+                    <p className="text-xs text-neutral-500">Balance</p>
+                    <p className="text-sm font-medium text-green-600">
+                      ${balance?.toFixed(2) ?? '0.00'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const amount = prompt('Enter amount to fund (USDC):');
+                      if (amount && !isNaN(parseFloat(amount))) {
+                        alert(`Fund wallet with ${amount} USDC - Feature coming soon!`);
+                      }
+                    }}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500"
+                  >
+                    Fund
+                  </Button>
+                </div>
+              )}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="md:hidden w-10 h-10 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center"
@@ -422,18 +490,59 @@ function NestApp() {
                   </button>
                 ))}
                 
-                <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                  <Button
-                    onClick={() => {
-                      alert('Sign up coming soon!');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    size="sm"
-                  >
-                    Sign Up
-                  </Button>
-                </div>
+                {!authenticated && (
+                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                    <Button
+                      onClick={async () => {
+                        setIsCreatingWallet(true);
+                        try {
+                          await createWallet();
+                          setIsMobileMenuOpen(false);
+                          alert('Wallet created successfully! You can now fund it.');
+                        } catch (err: any) {
+                          console.error('Failed to create wallet:', err);
+                          alert(err.message || 'Failed to create wallet. Please try again.');
+                        } finally {
+                          setIsCreatingWallet(false);
+                        }
+                      }}
+                      disabled={isCreatingWallet}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      size="sm"
+                    >
+                      {isCreatingWallet ? 'Creating Wallet...' : 'Sign Up & Create Wallet'}
+                    </Button>
+                  </div>
+                )}
+                
+                {authenticated && (
+                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
+                    <div className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                      <p className="text-xs text-neutral-500">Wallet Address</p>
+                      <p className="text-sm font-mono text-neutral-900 dark:text-white">
+                        {wallet?.address?.slice(0, 10)}...{wallet?.address?.slice(-8)}
+                      </p>
+                    </div>
+                    <div className="px-4 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <p className="text-xs text-green-600">Balance</p>
+                      <p className="text-lg font-bold text-green-700">
+                        ${balance?.toFixed(2) ?? '0.00'} USDC
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        const amount = prompt('Enter amount to fund (USDC):');
+                        if (amount && !isNaN(parseFloat(amount))) {
+                          alert(`Fund wallet with ${amount} USDC - Feature coming soon!`);
+                        }
+                      }}
+                      className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                      size="sm"
+                    >
+                      Fund Wallet
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
